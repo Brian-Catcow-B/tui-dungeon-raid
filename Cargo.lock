@@ -237,7 +237,6 @@ dependencies = [
  "crossterm",
  "dungeon-raid-core",
  "ratatui",
- "unicode-width",
 ]
 
 [[package]]
