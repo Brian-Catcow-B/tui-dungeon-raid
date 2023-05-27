@@ -134,7 +134,7 @@ impl<'a> Widget for GameWidget<'a> {
                 buf.get_mut(blot_x, blot_y).set_char(blot);
                 let mut arrow_blot_x = blot_x;
                 let mut arrow_blot_y = blot_y;
-                let arrow_blot: char;
+                let mut arrow_blot: char;
                 let relative_next = t.next_selection;
                 match relative_next {
                     Wind8::None => continue,
@@ -170,6 +170,10 @@ impl<'a> Widget for GameWidget<'a> {
                         };
                     }
                 };
+                match buf.get(arrow_blot_x, arrow_blot_y).symbol.chars().next() {
+                    Some('/') | Some('\\') => arrow_blot = 'X',
+                    _ => {},
+                }
                 buf.get_mut(arrow_blot_x, arrow_blot_y).set_char(arrow_blot);
             }
         }
@@ -188,7 +192,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                 KeyCode::Char('q') => return Ok(()),
                 KeyCode::Char(' ') => {
                     game.drop_selection();
+                    log_to_file(&String::from("calling apply_gravity_and_randomize_new_tiles"));
                     game.apply_gravity_and_randomize_new_tiles();
+                    log_to_file(&String::from("DONE: calling apply_gravity_and_randomize_new_tiles"));
                 }
                 KeyCode::Char('x') => {
                     game.select_tile(tile_position_from_cursor_position(terminal.get_cursor()?));
