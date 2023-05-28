@@ -13,7 +13,7 @@ use ratatui::{
     layout::Rect,
     widgets::Widget,
     Frame, Terminal,
-    style::Color,
+    style::{Style, Modifier, Color},
 };
 use std::{error::Error, io, io::prelude::*};
 
@@ -145,7 +145,14 @@ impl<'a> Widget for GameWidget<'a> {
                     .expect("plz");
                 let blot = blot_char_from_tile_type(t.tile_type);
                 let (bg_color, fg_color) = bg_fg_color_from_tile_type(t.tile_type);
-                buf.get_mut(blot_x, blot_y).set_bg(bg_color).set_fg(fg_color).set_char(blot);
+                let mut style = Style::default().bg(bg_color).fg(fg_color);
+                match self.game.get_selection_start() {
+                    Some(pos) => if pos == TilePosition::new(y as isize, x as isize) {
+                        style = style.add_modifier(Modifier::RAPID_BLINK);
+                    },
+                    None => {},
+                };
+                buf.get_mut(blot_x, blot_y).set_style(style).set_char(blot);
                 let mut arrow_blot_x = blot_x;
                 let mut arrow_blot_y = blot_y;
                 let mut arrow_blot: char;

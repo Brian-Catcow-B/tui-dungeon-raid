@@ -54,7 +54,7 @@ dependencies = [
 [[package]]
 name = "dungeon-raid-core"
 version = "0.1.0"
-source = "git+https://github.com/Brian-Catcow-B/dungeon-raid-core#ed0ff08337f8d0238490faf9eb0161fb9d5d1b1d"
+source = "git+https://github.com/Brian-Catcow-B/dungeon-raid-core#42aabdbaed3f55c4952b7faf6dfe0471781dce08"
 dependencies = [
  "rand",
 ]
