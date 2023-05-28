@@ -13,6 +13,7 @@ use ratatui::{
     layout::Rect,
     widgets::Widget,
     Frame, Terminal,
+    style::Color,
 };
 use std::{error::Error, io, io::prelude::*};
 
@@ -117,6 +118,18 @@ fn blot_char_from_tile_type(tile_type: TileType) -> char {
     }
 }
 
+fn bg_fg_color_from_tile_type(tile_type: TileType) -> (Color, Color) {
+    match tile_type {
+        TileType::Heart => (Color::LightMagenta, Color::Black),
+        TileType::Shield => (Color::Blue, Color::Black),
+        TileType::Coin => (Color::Yellow, Color::Black),
+        TileType::Sword => (Color::Green, Color::Black),
+        TileType::Enemy => (Color::Red, Color::Black),
+        TileType::Boss => (Color::LightRed, Color::Black),
+        _ => (Color::Black, Color::White),
+    }
+}
+
 struct GameWidget<'a> {
     pub game: &'a Game,
 }
@@ -131,7 +144,8 @@ impl<'a> Widget for GameWidget<'a> {
                     .get_tile(TilePosition::new(y as isize, x as isize))
                     .expect("plz");
                 let blot = blot_char_from_tile_type(t.tile_type);
-                buf.get_mut(blot_x, blot_y).set_char(blot);
+                let (bg_color, fg_color) = bg_fg_color_from_tile_type(t.tile_type);
+                buf.get_mut(blot_x, blot_y).set_bg(bg_color).set_fg(fg_color).set_char(blot);
                 let mut arrow_blot_x = blot_x;
                 let mut arrow_blot_y = blot_y;
                 let mut arrow_blot: char;
