@@ -135,6 +135,7 @@ struct GameWidget<'a> {
 }
 impl<'a> Widget for GameWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // board
         for x in 0..(DEFAULT_BOARD_WIDTH as u16) {
             let blot_x = x * 2;
             for y in 0..(DEFAULT_BOARD_HEIGHT as u16) {
@@ -198,6 +199,20 @@ impl<'a> Widget for GameWidget<'a> {
                 buf.get_mut(arrow_blot_x, arrow_blot_y).set_char(arrow_blot);
             }
         }
+        // below text
+        let mut text_y = CURSOR_MAX_DOWN + 1;
+
+        // incoming damage
+        let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
+        buf.set_string(0, text_y, incoming_damage_display, Style::default());
+        text_y += 1;
+        // player
+        let hit_points_display = format!("hit points: {}/{}", self.game.player().being.hit_points, self.game.player().being.max_hit_points);
+        buf.set_string(0, text_y, hit_points_display, Style::default());
+        text_y += 1;
+        let shields_display = format!("shields: {}/{}", self.game.player().being.shields, self.game.player().being.max_shields);
+        buf.set_string(0, CURSOR_MAX_DOWN + 3, shields_display, Style::default());
+        text_y += 1;
     }
 }
 
