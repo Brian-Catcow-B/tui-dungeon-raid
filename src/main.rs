@@ -227,10 +227,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
                 KeyCode::Char(' ') => {
-                    game.drop_selection();
-                    log_to_file(&String::from("calling apply_gravity_and_randomize_new_tiles"));
-                    game.apply_gravity_and_randomize_new_tiles();
-                    log_to_file(&String::from("DONE: calling apply_gravity_and_randomize_new_tiles"));
+                    if !game.drop_selection().is_empty() {
+                        // slashed tiles; have enemies attack and then pull down tiles,
+                        // randomizing the new ones
+                        game.apply_incoming_damage();
+                        game.apply_gravity_and_randomize_new_tiles();
+                    }
                 }
                 KeyCode::Char('x') => {
                     game.select_tile(tile_position_from_cursor_position(terminal.get_cursor()?));
