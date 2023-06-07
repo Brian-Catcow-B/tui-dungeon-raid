@@ -4,6 +4,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use dungeon_raid_core::game::{
+    improvement_choices::{ImprovementChoiceSet, ImprovementInfo},
     tile::{Tile, TilePosition, TileType, Wind8},
     Game, DEFAULT_BOARD_HEIGHT, DEFAULT_BOARD_WIDTH,
 };
@@ -11,9 +12,9 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     buffer::Buffer,
     layout::Rect,
+    style::{Color, Modifier, Style},
     widgets::Widget,
     Frame, Terminal,
-    style::{Style, Modifier, Color},
 };
 use std::{error::Error, io, io::prelude::*};
 
@@ -23,7 +24,11 @@ fn clear_log_file() {
     write!(&mut file, "").expect("failed to write file");
 }
 fn log_to_file(msg: &String) {
-    let mut file = std::fs::File::options().append(true).create(true).open(LOG_FILE).expect("failed to create file");
+    let mut file = std::fs::File::options()
+        .append(true)
+        .create(true)
+        .open(LOG_FILE)
+        .expect("failed to create file");
     writeln!(&mut file, "{}", msg).expect("failed to write file");
 }
 
@@ -56,6 +61,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Copy, Clone)]
+enum GameState {
+    Playing,
+    ChoosingImprovement(usize), //num_choices
+}
+
+#[derive(Copy, Clone)]
 enum CursorMove {
     Up,
     Right,
@@ -63,47 +74,83 @@ enum CursorMove {
     Left,
 }
 
-const CURSOR_MOVE: u16 = 2;
-const CURSOR_MAX_UP: u16 = 0;
-const CURSOR_MAX_RIGHT: u16 = CURSOR_MAX_LEFT + DEFAULT_BOARD_WIDTH as u16 * 2 - 1;
-const CURSOR_MAX_DOWN: u16 = CURSOR_MAX_UP + DEFAULT_BOARD_HEIGHT as u16 * 2 - 1;
-const CURSOR_MAX_LEFT: u16 = 0;
+const PLAYING_CURSOR_MOVE: u16 = 2;
+const PLAYING_CURSOR_MAX_UP: u16 = 0;
+const PLAYING_CURSOR_MAX_RIGHT: u16 = PLAYING_CURSOR_MAX_LEFT + DEFAULT_BOARD_WIDTH as u16 * 2 - 1;
+const PLAYING_CURSOR_MAX_DOWN: u16 = PLAYING_CURSOR_MAX_UP + DEFAULT_BOARD_HEIGHT as u16 * 2 - 1;
+const PLAYING_CURSOR_MAX_LEFT: u16 = 0;
+const CHOOSING_IMPROVEMENT_CURSOR_MOVE: u16 = 1;
+const CHOOSING_IMPROVEMENT_CURSOR_MAX_UP: u16 = 1;
 
-fn move_cursor<B: Backend>(terminal: &mut Terminal<B>, m: CursorMove) -> io::Result<(u16, u16)> {
+fn move_cursor<B: Backend>(
+    terminal: &mut Terminal<B>,
+    m: CursorMove,
+    gs: GameState,
+) -> io::Result<(u16, u16)> {
     let mut cursor_pos = terminal.get_cursor()?;
-    log_to_file(&format!("move_cursor called with terminal.get_cursor() giving (x {}, y {})", cursor_pos.0, cursor_pos.1));
-    match m {
-        CursorMove::Up => {
-            if cursor_pos.1 >= CURSOR_MAX_UP + CURSOR_MOVE {
-                cursor_pos.1 -= CURSOR_MOVE;
-            }
+    log_to_file(&format!(
+        "move_cursor called with terminal.get_cursor() giving (x {}, y {})",
+        cursor_pos.0, cursor_pos.1
+    ));
+    match gs {
+        GameState::Playing => {
+            match m {
+                CursorMove::Up => {
+                    if cursor_pos.1 >= PLAYING_CURSOR_MAX_UP + PLAYING_CURSOR_MOVE {
+                        cursor_pos.1 -= PLAYING_CURSOR_MOVE;
+                    }
+                }
+                CursorMove::Right => {
+                    if cursor_pos.0 <= PLAYING_CURSOR_MAX_RIGHT - PLAYING_CURSOR_MOVE {
+                        cursor_pos.0 += PLAYING_CURSOR_MOVE;
+                    }
+                }
+                CursorMove::Down => {
+                    if cursor_pos.1 <= PLAYING_CURSOR_MAX_DOWN - PLAYING_CURSOR_MOVE {
+                        cursor_pos.1 += PLAYING_CURSOR_MOVE;
+                    }
+                }
+                CursorMove::Left => {
+                    if cursor_pos.0 >= PLAYING_CURSOR_MAX_LEFT + PLAYING_CURSOR_MOVE {
+                        cursor_pos.0 -= PLAYING_CURSOR_MOVE;
+                    }
+                }
+            };
         }
-        CursorMove::Right => {
-            if cursor_pos.0 <= CURSOR_MAX_RIGHT - CURSOR_MOVE {
-                cursor_pos.0 += CURSOR_MOVE;
+        GameState::ChoosingImprovement(num_choices) => match m {
+            CursorMove::Up => {
+                if cursor_pos.1
+                    >= CHOOSING_IMPROVEMENT_CURSOR_MAX_UP + CHOOSING_IMPROVEMENT_CURSOR_MOVE
+                {
+                    cursor_pos.1 -= CHOOSING_IMPROVEMENT_CURSOR_MOVE;
+                }
             }
-        }
-        CursorMove::Down => {
-            if cursor_pos.1 <= CURSOR_MAX_DOWN - CURSOR_MOVE {
-                cursor_pos.1 += CURSOR_MOVE;
+            CursorMove::Down => {
+                if cursor_pos.1
+                    <= CHOOSING_IMPROVEMENT_CURSOR_MAX_UP + num_choices as u16
+                        - 1
+                        - CHOOSING_IMPROVEMENT_CURSOR_MOVE
+                {
+                    cursor_pos.1 += CHOOSING_IMPROVEMENT_CURSOR_MOVE;
+                }
             }
-        }
-        CursorMove::Left => {
-            if cursor_pos.0 >= CURSOR_MAX_LEFT + CURSOR_MOVE {
-                cursor_pos.0 -= CURSOR_MOVE;
-            }
-        }
+            _ => unreachable!(""),
+        },
     };
     Ok(cursor_pos)
 }
 
 fn tile_position_from_cursor_position(cursor_position: (u16, u16)) -> TilePosition {
-    log_to_file(&format!("tile_position_from_cursor_position: (cursor.x {}, cursor.y {})", cursor_position.0, cursor_position.1));
     let (x, y) = cursor_position;
     TilePosition::new(
-        ((y - CURSOR_MAX_UP) / 2) as isize,
-        ((x - CURSOR_MAX_LEFT) / 2) as isize,
+        ((y - PLAYING_CURSOR_MAX_UP) / 2) as isize,
+        ((x - PLAYING_CURSOR_MAX_LEFT) / 2) as isize,
     )
+}
+
+fn improvement_choice_index_from_cursor_position(cursor_position: (u16, u16)) -> usize {
+    let (_x, y) = cursor_position;
+    (y - PLAYING_CURSOR_MAX_UP - 1) as usize
 }
 
 fn blot_char_from_tile_type(tile_type: TileType) -> char {
@@ -135,34 +182,83 @@ struct GameWidget<'a> {
 }
 impl<'a> Widget for GameWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // board
-        for x in 0..(DEFAULT_BOARD_WIDTH as u16) {
-            let blot_x = x * 2;
-            for y in 0..(DEFAULT_BOARD_HEIGHT as u16) {
-                let blot_y = y * 2;
-                let t: Tile = self
-                    .game
-                    .get_tile(TilePosition::new(y as isize, x as isize))
-                    .expect("plz");
-                let blot = blot_char_from_tile_type(t.tile_type);
-                let (bg_color, fg_color) = bg_fg_color_from_tile_type(t.tile_type);
-                let mut style = Style::default().bg(bg_color).fg(fg_color);
-                match self.game.get_selection_start() {
-                    Some(pos) => if pos == TilePosition::new(y as isize, x as isize) {
-                        style = style.add_modifier(Modifier::RAPID_BLINK);
-                    },
-                    None => {},
-                };
-                buf.get_mut(blot_x, blot_y).set_style(style).set_char(blot);
-                let mut arrow_blot_x = blot_x;
-                let mut arrow_blot_y = blot_y;
-                let mut arrow_blot: char;
-                let relative_next = t.next_selection;
-                match relative_next {
-                    Wind8::None => continue,
-                    _ => {
-                        let tp = TilePosition::try_from(relative_next).expect("TilePosition::TryFrom<Wind8> should always succeed when not Wind8::None");
-                        arrow_blot = match tp.y {
+        // below text
+        let mut text_y = PLAYING_CURSOR_MAX_DOWN + 1;
+
+        // incoming damage
+        let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
+        buf.set_string(0, text_y, incoming_damage_display, Style::default());
+        text_y += 1;
+        // player
+        let hit_points_display = format!(
+            "hit points: {}/{}",
+            self.game.player().being.hit_points,
+            self.game.player().being.max_hit_points
+        );
+        buf.set_string(0, text_y, hit_points_display, Style::default());
+        text_y += 1;
+        let shields_display = format!(
+            "shields: {}/{}",
+            self.game.player().being.shields,
+            self.game.player().being.max_shields
+        );
+        buf.set_string(
+            0,
+            text_y,
+            shields_display,
+            Style::default(),
+        );
+        text_y += 1;
+        let coins_display = format!("coins: {}", self.game.player().coins);
+        buf.set_string(0, text_y, coins_display, Style::default());
+        text_y += 1;
+        let up_display = format!("UP: {}", self.game.player().excess_shields);
+        buf.set_string(0, text_y, up_display, Style::default());
+
+        // improvement choice or board
+
+        match self.game.improvement_choice_set() {
+            Some(set) => {
+                // improvement choice
+                let mut choice_text_y = 0;
+                buf.set_string(0, choice_text_y, String::from(set.header), Style::default());
+                choice_text_y += 1;
+                for display in set.displays.iter() {
+                    buf.set_string(1, choice_text_y, display.description.as_str(), Style::default());
+                    choice_text_y += 1;
+                }
+            },
+            None => {
+                // board
+                for x in 0..(DEFAULT_BOARD_WIDTH as u16) {
+                    let blot_x = x * 2;
+                    for y in 0..(DEFAULT_BOARD_HEIGHT as u16) {
+                        let blot_y = y * 2;
+                        let t: Tile = self
+                            .game
+                            .get_tile(TilePosition::new(y as isize, x as isize))
+                            .expect("plz");
+                        let blot = blot_char_from_tile_type(t.tile_type);
+                        let (bg_color, fg_color) = bg_fg_color_from_tile_type(t.tile_type);
+                        let mut style = Style::default().bg(bg_color).fg(fg_color);
+                        match self.game.get_selection_start() {
+                            Some(pos) => {
+                                if pos == TilePosition::new(y as isize, x as isize) {
+                                    style = style.add_modifier(Modifier::RAPID_BLINK);
+                                }
+                            }
+                            None => {}
+                        };
+                        buf.get_mut(blot_x, blot_y).set_style(style).set_char(blot);
+                        let mut arrow_blot_x = blot_x;
+                        let mut arrow_blot_y = blot_y;
+                        let mut arrow_blot: char;
+                        let relative_next = t.next_selection;
+                        match relative_next {
+                            Wind8::None => continue,
+                            _ => {
+                                let tp = TilePosition::try_from(relative_next).expect("TilePosition::TryFrom<Wind8> should always succeed when not Wind8::None");
+                                arrow_blot = match tp.y {
                             -1 => {
                                 arrow_blot_y -= 1;
                                 match tp.x {
@@ -185,64 +281,108 @@ impl<'a> Widget for GameWidget<'a> {
                             }},
                             _ => unreachable!("unattainable TilePosition resulting from TilePosition::TryFrom<Wind8>") ,
                         };
-                        match tp.x {
-                            -1 => arrow_blot_x -= 1,
-                            1 => arrow_blot_x += 1,
-                            _ => {}
+                                match tp.x {
+                                    -1 => arrow_blot_x -= 1,
+                                    1 => arrow_blot_x += 1,
+                                    _ => {}
+                                };
+                            }
                         };
+                        match buf.get(arrow_blot_x, arrow_blot_y).symbol.chars().next() {
+                            Some('/') | Some('\\') => arrow_blot = 'X',
+                            _ => {}
+                        }
+                        buf.get_mut(arrow_blot_x, arrow_blot_y).set_char(arrow_blot);
                     }
-                };
-                match buf.get(arrow_blot_x, arrow_blot_y).symbol.chars().next() {
-                    Some('/') | Some('\\') => arrow_blot = 'X',
-                    _ => {},
                 }
-                buf.get_mut(arrow_blot_x, arrow_blot_y).set_char(arrow_blot);
             }
         }
-        // below text
-        let mut text_y = CURSOR_MAX_DOWN + 1;
-
-        // incoming damage
-        let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
-        buf.set_string(0, text_y, incoming_damage_display, Style::default());
-        text_y += 1;
-        // player
-        let hit_points_display = format!("hit points: {}/{}", self.game.player().being.hit_points, self.game.player().being.max_hit_points);
-        buf.set_string(0, text_y, hit_points_display, Style::default());
-        text_y += 1;
-        let shields_display = format!("shields: {}/{}", self.game.player().being.shields, self.game.player().being.max_shields);
-        buf.set_string(0, CURSOR_MAX_DOWN + 3, shields_display, Style::default());
-        text_y += 1;
     }
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
     let mut game = Game::default();
-    let mut cursor_position: (u16, u16) = (0, 0);
+    let mut playing_cursor_position: (u16, u16) = (0, 0);
+    let mut choosing_improvement_cursor_position: (u16, u16) = (0, 1);
+    let mut game_state: GameState;
     terminal.show_cursor()?;
     loop {
+        game_state = match game.improvement_choice_set() {
+            Some(set) => {
+                let num_choices = match set.info {
+                    ImprovementInfo::ShieldUpgradeInfo(ref vec) => vec.len(),
+                    ImprovementInfo::CoinPurchaseInfo(ref vec) => vec.len(),
+                };
+                GameState::ChoosingImprovement(num_choices)
+            }
+            None => GameState::Playing,
+        };
+        let cursor_position = match game_state {
+            GameState::Playing => playing_cursor_position,
+            GameState::ChoosingImprovement(_) => choosing_improvement_cursor_position,
+        };
+
         terminal.draw(|f| ui(f, &game, cursor_position))?;
 
         if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Char('q') => return Ok(()),
-                KeyCode::Char(' ') => {
-                    if !game.drop_selection().is_empty() {
-                        // slashed tiles; have enemies attack and then pull down tiles,
-                        // randomizing the new ones
-                        game.apply_incoming_damage();
-                        game.apply_gravity_and_randomize_new_tiles();
+            match game.improvement_choice_set() {
+                Some(set) => {
+                    // choosing improvement
+                    match key.code {
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Char(' ') => {
+                            game.choose_improvement(improvement_choice_index_from_cursor_position(
+                                terminal.get_cursor()?,
+                            ));
+                        }
+                        KeyCode::Char('j') | KeyCode::Down => {
+                            choosing_improvement_cursor_position =
+                                move_cursor(terminal, CursorMove::Down, game_state)?
+                        }
+                        KeyCode::Char('k') | KeyCode::Up => {
+                            choosing_improvement_cursor_position =
+                                move_cursor(terminal, CursorMove::Up, game_state)?
+                        }
+                        _ => {}
                     }
                 }
-                KeyCode::Char('x') => {
-                    game.select_tile(tile_position_from_cursor_position(terminal.get_cursor()?));
+                None => {
+                    // playing on board
+                    match key.code {
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Char(' ') => {
+                            if game.drop_selection() {
+                                // slashed tiles; have enemies attack and then pull down tiles,
+                                // randomizing the new ones
+                                game.apply_incoming_damage();
+                                game.apply_gravity_and_randomize_new_tiles();
+                            }
+                        }
+                        KeyCode::Char('x') => {
+                            game.select_tile(tile_position_from_cursor_position(
+                                terminal.get_cursor()?,
+                            ));
+                        }
+                        KeyCode::Char('h') | KeyCode::Left => {
+                            playing_cursor_position =
+                                move_cursor(terminal, CursorMove::Left, game_state)?
+                        }
+                        KeyCode::Char('j') | KeyCode::Down => {
+                            playing_cursor_position =
+                                move_cursor(terminal, CursorMove::Down, game_state)?
+                        }
+                        KeyCode::Char('k') | KeyCode::Up => {
+                            playing_cursor_position =
+                                move_cursor(terminal, CursorMove::Up, game_state)?
+                        }
+                        KeyCode::Char('l') | KeyCode::Right => {
+                            playing_cursor_position =
+                                move_cursor(terminal, CursorMove::Right, game_state)?
+                        }
+                        _ => {}
+                    };
                 }
-                KeyCode::Char('h') | KeyCode::Left => cursor_position = move_cursor(terminal, CursorMove::Left)?,
-                KeyCode::Char('j') | KeyCode::Down => cursor_position = move_cursor(terminal, CursorMove::Down)?,
-                KeyCode::Char('k') | KeyCode::Up => cursor_position = move_cursor(terminal, CursorMove::Up)?,
-                KeyCode::Char('l') | KeyCode::Right => cursor_position = move_cursor(terminal, CursorMove::Right)?,
-                _ => {}
-            };
+            }
         }
     }
 }
@@ -253,10 +393,10 @@ fn ui<B: Backend>(f: &mut Frame<B>, game: &Game, cursor_pos: (u16, u16)) {
     f.render_widget(
         game_widget,
         Rect::new(
-            CURSOR_MAX_LEFT,
-            CURSOR_MAX_UP,
-            CURSOR_MAX_RIGHT - CURSOR_MAX_LEFT,
-            CURSOR_MAX_DOWN - CURSOR_MAX_UP,
+            PLAYING_CURSOR_MAX_LEFT,
+            PLAYING_CURSOR_MAX_UP,
+            PLAYING_CURSOR_MAX_RIGHT - PLAYING_CURSOR_MAX_LEFT,
+            PLAYING_CURSOR_MAX_DOWN - PLAYING_CURSOR_MAX_UP,
         ),
     );
 
