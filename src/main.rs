@@ -5,7 +5,7 @@ use crossterm::{
 };
 use dungeon_raid_core::game::{
     improvement_choices::{ImprovementChoiceSet, ImprovementInfo},
-    tile::{Tile, TilePosition, TileType, Wind8},
+    tile::{Tile, TilePosition, TileType, TileInfo, Wind8},
     Game, DEFAULT_BOARD_HEIGHT, DEFAULT_BOARD_WIDTH,
 };
 use ratatui::{
@@ -179,6 +179,7 @@ fn bg_fg_color_from_tile_type(tile_type: TileType) -> (Color, Color) {
 
 struct GameWidget<'a> {
     pub game: &'a Game,
+    pub cursor_pos: (u16, u16),
 }
 impl<'a> Widget for GameWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
@@ -214,6 +215,7 @@ impl<'a> Widget for GameWidget<'a> {
         text_y += 1;
         let up_display = format!("UP: {}", self.game.player().excess_shields);
         buf.set_string(0, text_y, up_display, Style::default());
+        text_y += 1;
 
         // improvement choice or board
 
@@ -230,6 +232,27 @@ impl<'a> Widget for GameWidget<'a> {
             },
             None => {
                 // board
+                {
+                    let hover_tile = self.game.get_tile(tile_position_from_cursor_position(self.cursor_pos)).expect("");
+                    let mut hover_string = String::from("Hovered Tile: ");
+                    hover_string += match hover_tile.tile_type {
+                        TileType::Heart => "Heart Potion",
+                        TileType::Shield => "Shield",
+                        TileType::Coin => "Coin",
+                        TileType::Sword => "Sword",
+                        TileType::Enemy => "Enemy",
+                        TileType::Boss => "Boss",
+                        _ => unreachable!(""),
+                    };
+                    let info_string;
+                    match hover_tile.tile_info {
+                        TileInfo::Enemy(e) => info_string = format!(" {{ hp: {}, sh: {}, dmg: {} }}", e.hit_points, e.shields, e.base_output_damage),
+                        TileInfo::Boss(b) => info_string = format!(" {{ hp: {}, sh: {}, dmg: {} }}", b.hit_points, b.shields, b.base_output_damage),
+                        TileInfo::None => info_string = String::from(""),
+                    };
+                    hover_string += info_string.as_str();
+                    buf.set_string(0, text_y, hover_string, Style::default());
+                }
                 for x in 0..(DEFAULT_BOARD_WIDTH as u16) {
                     let blot_x = x * 2;
                     for y in 0..(DEFAULT_BOARD_HEIGHT as u16) {
@@ -388,7 +411,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, game: &Game, cursor_pos: (u16, u16)) {
-    let game_widget = GameWidget { game: game };
+    let game_widget = GameWidget { game: game, cursor_pos };
 
     f.render_widget(
         game_widget,
