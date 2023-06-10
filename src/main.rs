@@ -210,10 +210,10 @@ impl<'a> Widget for GameWidget<'a> {
             Style::default(),
         );
         text_y += 1;
-        let coins_display = format!("coins: {}", self.game.player().coins);
+        let coins_display = format!("coins: {}", self.game.player().coin_cents);
         buf.set_string(0, text_y, coins_display, Style::default());
         text_y += 1;
-        let up_display = format!("UP: {}", self.game.player().excess_shields);
+        let up_display = format!("UP: {}", self.game.player().excess_shield_cents);
         buf.set_string(0, text_y, up_display, Style::default());
         text_y += 1;
 
