@@ -233,13 +233,19 @@ impl<'a> Widget for GameWidget<'a> {
                 Some(a) => {
                     let (name, _) = a.ability_type.name_description();
                     ability_string += name;
+                    buf.set_string(0, text_y, ability_string, Style::default());
+                    text_y += 1;
+                    if a.running_cooldown > 0 {
+                        buf.set_string(4, text_y, format!("COOLDOWN: {}", a.running_cooldown), Style::default());
+                        text_y += 1;
+                    }
                 }
                 None => {
                     ability_string += "[empty]";
+                    buf.set_string(0, text_y, ability_string, Style::default());
+                    text_y += 1;
                 }
             };
-            buf.set_string(0, text_y, ability_string, Style::default());
-            text_y += 1;
         }
         text_y += 1;
 
@@ -450,6 +456,18 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         KeyCode::Char('l') | KeyCode::Right => {
                             playing_cursor_position =
                                 move_cursor(terminal, CursorMove::Right, game_state)?
+                        }
+                        KeyCode::Char('1') => {
+                            game.cast_ability(0);
+                        }
+                        KeyCode::Char('2') => {
+                            game.cast_ability(1);
+                        }
+                        KeyCode::Char('3') => {
+                            game.cast_ability(2);
+                        }
+                        KeyCode::Char('4') => {
+                            game.cast_ability(3);
                         }
                         _ => {}
                     };
