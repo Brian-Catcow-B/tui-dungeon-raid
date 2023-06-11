@@ -180,10 +180,17 @@ fn bg_fg_color_from_tile_type(tile_type: TileType) -> (Color, Color) {
 struct GameWidget<'a> {
     pub game: &'a Game,
     pub cursor_pos: (u16, u16),
+    pub improvement_choice_selection_positions: &'a Vec<(u16, u16)>,
 }
 impl<'a> Widget for GameWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // selection positions
+        for pos in self.improvement_choice_selection_positions.iter() {
+            buf.get_mut(pos.0, pos.1).set_bg(Color::White);
+        }
+
         // below text
+
         let mut text_y = PLAYING_CURSOR_MAX_DOWN + 1;
 
         // incoming damage
@@ -215,6 +222,9 @@ impl<'a> Widget for GameWidget<'a> {
         text_y += 1;
         let up_display = format!("UP: {}", self.game.player().excess_shield_cents);
         buf.set_string(0, text_y, up_display, Style::default());
+        text_y += 1;
+        let xp_display = format!("XP: {}", self.game.player().experience_point_cents);
+        buf.set_string(0, text_y, xp_display, Style::default());
         text_y += 1;
 
         // improvement choice or board
@@ -327,6 +337,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
     let mut game = Game::default();
     let mut playing_cursor_position: (u16, u16) = (0, 0);
     let mut choosing_improvement_cursor_position: (u16, u16) = (0, 1);
+    let mut improvement_choice_indeces: Vec<usize> = vec![];
+    let mut improvement_choice_selection_positions: Vec<(u16, u16)> = vec![];
     let mut game_state: GameState;
     terminal.show_cursor()?;
     loop {
@@ -335,6 +347,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                 let num_choices = match set.info {
                     ImprovementInfo::ShieldUpgradeInfo(ref vec) => vec.len(),
                     ImprovementInfo::CoinPurchaseInfo(ref vec) => vec.len(),
+                    ImprovementInfo::ExperiencePointLevelUpInfo(ref vec) => vec.len(),
                 };
                 GameState::ChoosingImprovement(num_choices)
             }
@@ -345,7 +358,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
             GameState::ChoosingImprovement(_) => choosing_improvement_cursor_position,
         };
 
-        terminal.draw(|f| ui(f, &game, cursor_position))?;
+        terminal.draw(|f| ui(f, &game, cursor_position, &improvement_choice_selection_positions))?;
 
         if let Event::Key(key) = event::read()? {
             match game.improvement_choice_set() {
@@ -354,9 +367,29 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     match key.code {
                         KeyCode::Char('q') => return Ok(()),
                         KeyCode::Char(' ') => {
-                            game.choose_improvement(improvement_choice_index_from_cursor_position(
-                                terminal.get_cursor()?,
-                            ));
+                            let cursor_pos = terminal.get_cursor()?;
+                            let index_pressed = improvement_choice_index_from_cursor_position(
+                                cursor_pos,
+                            );
+                            let mut removed = false;
+                            for (vec_idx, pressed_idx) in improvement_choice_indeces.iter().enumerate() {
+                                if *pressed_idx == index_pressed {
+                                    improvement_choice_indeces.remove(vec_idx);
+                                    improvement_choice_selection_positions.remove(vec_idx);
+                                    removed = true;
+                                    break;
+                                }
+                            }
+                            if !removed {
+                                improvement_choice_indeces.push(index_pressed);
+                                improvement_choice_selection_positions.push(cursor_pos);
+                            }
+                            if improvement_choice_indeces.len() == set.num_to_choose {
+                                game.choose_improvements(&improvement_choice_indeces);
+                                improvement_choice_indeces.clear();
+                                improvement_choice_selection_positions.clear();
+                                choosing_improvement_cursor_position = (0, 1);
+                            }
                         }
                         KeyCode::Char('j') | KeyCode::Down => {
                             choosing_improvement_cursor_position =
@@ -410,8 +443,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, game: &Game, cursor_pos: (u16, u16)) {
-    let game_widget = GameWidget { game: game, cursor_pos };
+fn ui<B: Backend>(f: &mut Frame<B>, game: &Game, cursor_pos: (u16, u16), improvement_choice_selection_positions: &Vec<(u16, u16)>) {
+    let game_widget = GameWidget { game: game, cursor_pos, improvement_choice_selection_positions };
 
     f.render_widget(
         game_widget,
