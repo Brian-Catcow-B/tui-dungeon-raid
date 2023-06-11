@@ -197,7 +197,7 @@ impl<'a> Widget for GameWidget<'a> {
         let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
         buf.set_string(0, text_y, incoming_damage_display, Style::default());
         text_y += 1;
-        // player
+        // player stats and whatnot
         let hit_points_display = format!(
             "hit points: {}/{}",
             self.game.player().being.hit_points,
@@ -225,6 +225,22 @@ impl<'a> Widget for GameWidget<'a> {
         text_y += 1;
         let xp_display = format!("XP: {}", self.game.player().experience_point_cents);
         buf.set_string(0, text_y, xp_display, Style::default());
+        text_y += 2;
+        // player abilities
+        for (idx, ability_opt) in self.game.player().abilities.iter().enumerate() {
+            let mut ability_string = format!("{} - ", idx + 1);
+            match ability_opt {
+                Some(a) => {
+                    let (name, _) = a.ability_type.name_description();
+                    ability_string += name;
+                }
+                None => {
+                    ability_string += "[empty]";
+                }
+            };
+            buf.set_string(0, text_y, ability_string, Style::default());
+            text_y += 1;
+        }
         text_y += 1;
 
         // improvement choice or board
