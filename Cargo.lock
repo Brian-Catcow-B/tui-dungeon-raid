@@ -44,9 +44,9 @@ dependencies = [
 
 [[package]]
 name = "crossterm_winapi"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ae1b35a484aa10e07fe0638d02301c5ad24de82d310ccbd2f3693da5f09bf1c"
+checksum = "acdd7c62a3665c7f6830a51635d9ac9b23ed385797f70a83bb8bafe9c572ab2b"
 dependencies = [
  "winapi",
 ]
@@ -54,7 +54,7 @@ dependencies = [
 [[package]]
 name = "dungeon-raid-core"
 version = "0.1.0"
-source = "git+https://github.com/Brian-Catcow-B/dungeon-raid-core#089f2dc12b300eed19f4873f982e5967fd6443a3"
+source = "git+https://github.com/Brian-Catcow-B/dungeon-raid-core#835fdefa560553d3c5b2aa77a331004ef8e1080e"
 dependencies = [
  "rand",
 ]
