@@ -5,7 +5,7 @@ use crossterm::{
 };
 use dungeon_raid_core::game::{
     improvement_choices::{ImprovementChoiceSet, ImprovementInfo},
-    tile::{Tile, TilePosition, TileType, TileInfo, Wind8},
+    tile::{Tile, TileInfo, TilePosition, TileType, Wind8},
     Game, DEFAULT_BOARD_HEIGHT, DEFAULT_BOARD_WIDTH,
 };
 use ratatui::{
@@ -155,7 +155,7 @@ fn improvement_choice_index_from_cursor_position(cursor_position: (u16, u16)) ->
 
 fn blot_char_from_tile_type(tile_type: TileType) -> char {
     match tile_type {
-        TileType::Heart => 'h',
+        TileType::Potion => 'p',
         TileType::Shield => 's',
         TileType::Coin => 'c',
         TileType::Sword => 'S',
@@ -167,7 +167,7 @@ fn blot_char_from_tile_type(tile_type: TileType) -> char {
 
 fn bg_fg_color_from_tile_type(tile_type: TileType) -> (Color, Color) {
     match tile_type {
-        TileType::Heart => (Color::LightMagenta, Color::Black),
+        TileType::Potion => (Color::LightMagenta, Color::Black),
         TileType::Shield => (Color::Blue, Color::Black),
         TileType::Coin => (Color::Yellow, Color::Black),
         TileType::Sword => (Color::Green, Color::Black),
@@ -210,12 +210,7 @@ impl<'a> Widget for GameWidget<'a> {
             self.game.player().being.shields,
             self.game.player().being.max_shields
         );
-        buf.set_string(
-            0,
-            text_y,
-            shields_display,
-            Style::default(),
-        );
+        buf.set_string(0, text_y, shields_display, Style::default());
         text_y += 1;
         let coins_display = format!("coins: {}", self.game.player().coin_cents);
         buf.set_string(0, text_y, coins_display, Style::default());
@@ -236,7 +231,12 @@ impl<'a> Widget for GameWidget<'a> {
                     buf.set_string(0, text_y, ability_string, Style::default());
                     text_y += 1;
                     if a.running_cooldown > 0 {
-                        buf.set_string(4, text_y, format!("COOLDOWN: {}", a.running_cooldown), Style::default());
+                        buf.set_string(
+                            4,
+                            text_y,
+                            format!("COOLDOWN: {}", a.running_cooldown),
+                            Style::default(),
+                        );
                         text_y += 1;
                     }
                 }
@@ -258,17 +258,25 @@ impl<'a> Widget for GameWidget<'a> {
                 buf.set_string(0, choice_text_y, String::from(set.header), Style::default());
                 choice_text_y += 1;
                 for display in set.displays.iter() {
-                    buf.set_string(1, choice_text_y, display.description.as_str(), Style::default());
+                    buf.set_string(
+                        1,
+                        choice_text_y,
+                        display.description.as_str(),
+                        Style::default(),
+                    );
                     choice_text_y += 1;
                 }
-            },
+            }
             None => {
                 // board
                 {
-                    let hover_tile = self.game.get_tile(tile_position_from_cursor_position(self.cursor_pos)).expect("");
+                    let hover_tile = self
+                        .game
+                        .get_tile(tile_position_from_cursor_position(self.cursor_pos))
+                        .expect("");
                     let mut hover_string = String::from("Hovered Tile: ");
                     hover_string += match hover_tile.tile_type {
-                        TileType::Heart => "Heart Potion",
+                        TileType::Potion => "Potion",
                         TileType::Shield => "Shield",
                         TileType::Coin => "Coin",
                         TileType::Sword => "Sword",
@@ -278,8 +286,18 @@ impl<'a> Widget for GameWidget<'a> {
                     };
                     let info_string;
                     match hover_tile.tile_info {
-                        TileInfo::Enemy(e) => info_string = format!(" {{ hp: {}, sh: {}, dmg: {} }}", e.hit_points, e.shields, e.base_output_damage),
-                        TileInfo::Boss(b) => info_string = format!(" {{ hp: {}, sh: {}, dmg: {} }}", b.hit_points, b.shields, b.base_output_damage),
+                        TileInfo::Enemy(e) => {
+                            info_string = format!(
+                                " {{ hp: {}, sh: {}, dmg: {} }}",
+                                e.hit_points, e.shields, e.base_output_damage
+                            )
+                        }
+                        TileInfo::Boss(b) => {
+                            info_string = format!(
+                                " {{ hp: {}, sh: {}, dmg: {} }}",
+                                b.hit_points, b.shields, b.base_output_damage
+                            )
+                        }
                         TileInfo::None => info_string = String::from(""),
                     };
                     hover_string += info_string.as_str();
@@ -380,7 +398,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
             GameState::ChoosingImprovement(_) => choosing_improvement_cursor_position,
         };
 
-        terminal.draw(|f| ui(f, &game, cursor_position, &improvement_choice_selection_positions))?;
+        terminal.draw(|f| {
+            ui(
+                f,
+                &game,
+                cursor_position,
+                &improvement_choice_selection_positions,
+            )
+        })?;
 
         if let Event::Key(key) = event::read()? {
             match game.improvement_choice_set() {
@@ -390,11 +415,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         KeyCode::Char('q') => return Ok(()),
                         KeyCode::Char(' ') => {
                             let cursor_pos = terminal.get_cursor()?;
-                            let index_pressed = improvement_choice_index_from_cursor_position(
-                                cursor_pos,
-                            );
+                            let index_pressed =
+                                improvement_choice_index_from_cursor_position(cursor_pos);
                             let mut removed = false;
-                            for (vec_idx, pressed_idx) in improvement_choice_indeces.iter().enumerate() {
+                            for (vec_idx, pressed_idx) in
+                                improvement_choice_indeces.iter().enumerate()
+                            {
                                 if *pressed_idx == index_pressed {
                                     improvement_choice_indeces.remove(vec_idx);
                                     improvement_choice_selection_positions.remove(vec_idx);
@@ -477,8 +503,17 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, game: &Game, cursor_pos: (u16, u16), improvement_choice_selection_positions: &Vec<(u16, u16)>) {
-    let game_widget = GameWidget { game: game, cursor_pos, improvement_choice_selection_positions };
+fn ui<B: Backend>(
+    f: &mut Frame<B>,
+    game: &Game,
+    cursor_pos: (u16, u16),
+    improvement_choice_selection_positions: &Vec<(u16, u16)>,
+) {
+    let game_widget = GameWidget {
+        game: game,
+        cursor_pos,
+        improvement_choice_selection_positions,
+    };
 
     f.render_widget(
         game_widget,
