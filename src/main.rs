@@ -249,19 +249,19 @@ impl<'a> Widget for GameWidget<'a> {
         }
         text_y += 1;
         // current special
-        match self.game.special() {
-            Some(tile) => {
-                if let TileInfo::Special(special) = tile.tile_info {
-                    let (name, desc) = special.special_type.name_description();
-                    let special_display = format!("Special Monster: {} - {}", name, desc);
-                    buf.set_string(0, text_y, special_display, Style::default());
-                    text_y += 1;
-                } else {
-                    unreachable!("Game::special() gave Some(tile) with tile.tile_info NOT TileInfo::Special(_)");
-                }
+        let specials_vec = self.game.specials();
+        for (_tp, t) in specials_vec {
+            if let TileInfo::Special(special) = t.tile_info {
+                let (name, desc) = special.special_type.name_description();
+                let special_display = format!("Special Monster: {} - {}", name, desc);
+                buf.set_string(0, text_y, special_display, Style::default());
+                text_y += 1;
+            } else {
+                unreachable!(
+                    "Game::specials() gave a tile with tile.tile_info NOT TileInfo::Special(_)"
+                );
             }
-            None => {}
-        };
+        }
 
         // improvement choice or board
 
@@ -308,8 +308,11 @@ impl<'a> Widget for GameWidget<'a> {
                         }
                         TileInfo::Special(s) => {
                             info_string = format!(
-                                " {{ hp: {}, sh: {}, dmg: {} }}",
-                                s.being.hit_points, s.being.shields, s.being.base_output_damage
+                                " {{ type: {}, hp: {}, sh: {}, dmg: {} }}",
+                                s.special_type.name_description().0,
+                                s.being.hit_points,
+                                s.being.shields,
+                                s.being.base_output_damage
                             )
                         }
                         TileInfo::None => info_string = String::from(""),
