@@ -4,7 +4,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use dungeon_raid_core::game::{
-    improvement_choices::{ImprovementChoiceSet, ImprovementInfo},
+    improvement_choices::ImprovementInfo,
     tile::{Tile, TileInfo, TilePosition, TileType, Wind8},
     Game, DEFAULT_BOARD_HEIGHT, DEFAULT_BOARD_WIDTH,
 };
@@ -160,7 +160,7 @@ fn blot_char_from_tile_type(tile_type: TileType) -> char {
         TileType::Coin => 'c',
         TileType::Sword => 'S',
         TileType::Enemy => 'E',
-        TileType::Boss => 'B',
+        TileType::Special => 'B',
         _ => '!',
     }
 }
@@ -172,7 +172,7 @@ fn bg_fg_color_from_tile_type(tile_type: TileType) -> (Color, Color) {
         TileType::Coin => (Color::Yellow, Color::Black),
         TileType::Sword => (Color::Green, Color::Black),
         TileType::Enemy => (Color::Red, Color::Black),
-        TileType::Boss => (Color::LightRed, Color::Black),
+        TileType::Special => (Color::White, Color::Black),
         _ => (Color::Black, Color::White),
     }
 }
@@ -248,6 +248,20 @@ impl<'a> Widget for GameWidget<'a> {
             };
         }
         text_y += 1;
+        // current special
+        match self.game.special() {
+            Some(tile) => {
+                if let TileInfo::Special(special) = tile.tile_info {
+                    let (name, desc) = special.special_type.name_description();
+                    let special_display = format!("Special Monster: {} - {}", name, desc);
+                    buf.set_string(0, text_y, special_display, Style::default());
+                    text_y += 1;
+                } else {
+                    unreachable!("Game::special() gave Some(tile) with tile.tile_info NOT TileInfo::Special(_)");
+                }
+            }
+            None => {}
+        };
 
         // improvement choice or board
 
@@ -281,21 +295,21 @@ impl<'a> Widget for GameWidget<'a> {
                         TileType::Coin => "Coin",
                         TileType::Sword => "Sword",
                         TileType::Enemy => "Enemy",
-                        TileType::Boss => "Boss",
+                        TileType::Special => "Special",
                         _ => unreachable!(""),
                     };
                     let info_string;
                     match hover_tile.tile_info {
-                        TileInfo::Enemy(e) => {
-                            info_string = format!(
-                                " {{ hp: {}, sh: {}, dmg: {} }}",
-                                e.hit_points, e.shields, e.base_output_damage
-                            )
-                        }
-                        TileInfo::Boss(b) => {
+                        TileInfo::Enemy(b) => {
                             info_string = format!(
                                 " {{ hp: {}, sh: {}, dmg: {} }}",
                                 b.hit_points, b.shields, b.base_output_damage
+                            )
+                        }
+                        TileInfo::Special(s) => {
+                            info_string = format!(
+                                " {{ hp: {}, sh: {}, dmg: {} }}",
+                                s.being.hit_points, s.being.shields, s.being.base_output_damage
                             )
                         }
                         TileInfo::None => info_string = String::from(""),

@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 crossterm = "0.26"
 ratatui = "0.20"
-dungeon-raid-core = { git = "https://github.com/Brian-Catcow-B/dungeon-raid-core" }
+#dungeon-raid-core = { git = "https://github.com/Brian-Catcow-B/dungeon-raid-core" }
+dungeon-raid-core = { path = "../dungeon-raid-core" }
