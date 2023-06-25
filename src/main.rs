@@ -250,7 +250,7 @@ impl<'a> Widget for GameWidget<'a> {
         text_y += 1;
         // current special
         let specials_vec = self.game.specials();
-        for (_tp, t) in specials_vec {
+        for (_tp, t, _sid) in specials_vec {
             if let TileInfo::Special(special) = t.tile_info {
                 let (name, desc) = special.special_type.name_description();
                 let special_display = format!("Special Monster: {} - {}", name, desc);
