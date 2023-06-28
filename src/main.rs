@@ -183,7 +183,7 @@ struct GameWidget<'a> {
     pub improvement_choice_selection_positions: &'a Vec<(u16, u16)>,
 }
 impl<'a> Widget for GameWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+    fn render(self, _area: Rect, buf: &mut Buffer) {
         // selection positions
         for pos in self.improvement_choice_selection_positions.iter() {
             buf.get_mut(pos.0, pos.1).set_bg(Color::White);
