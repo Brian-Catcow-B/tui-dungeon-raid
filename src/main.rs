@@ -477,6 +477,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                                 // randomizing the new ones
                                 game.apply_incoming_damage();
                                 game.apply_gravity_and_randomize_new_tiles();
+                                game.run_end_of_turn_on_specials();
                             }
                         }
                         KeyCode::Char('x') => {
