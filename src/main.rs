@@ -286,7 +286,7 @@ impl<'a> Widget for GameWidget<'a> {
                 {
                     let hover_tile = self
                         .game
-                        .get_tile(tile_position_from_cursor_position(self.cursor_pos))
+                        .get_tile(&tile_position_from_cursor_position(self.cursor_pos))
                         .expect("");
                     let mut hover_string = String::from("Hovered Tile: ");
                     hover_string += match hover_tile.tile_type {
@@ -326,7 +326,7 @@ impl<'a> Widget for GameWidget<'a> {
                         let blot_y = y * 2;
                         let t: Tile = self
                             .game
-                            .get_tile(TilePosition::new(y as isize, x as isize))
+                            .get_tile(&TilePosition::new(y as isize, x as isize))
                             .expect("plz");
                         let blot = blot_char_from_tile_type(t.tile_type);
                         let (bg_color, fg_color) = bg_fg_color_from_tile_type(t.tile_type);
@@ -481,7 +481,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                             }
                         }
                         KeyCode::Char('x') => {
-                            game.select_tile(tile_position_from_cursor_position(
+                            game.select_tile(&tile_position_from_cursor_position(
                                 terminal.get_cursor()?,
                             ));
                         }
