@@ -212,13 +212,25 @@ impl<'a> Widget for GameWidget<'a> {
         );
         buf.set_string(0, text_y, shields_display, Style::default());
         text_y += 1;
-        let coins_display = format!("coins: {}", self.game.player().coin_cents);
+        let coins_display = format!(
+            "coins: {}/{}",
+            self.game.player().coin_cents,
+            self.game.player().coin_cents_per_purchase
+        );
         buf.set_string(0, text_y, coins_display, Style::default());
         text_y += 1;
-        let up_display = format!("UP: {}", self.game.player().excess_shield_cents);
+        let up_display = format!(
+            "UP: {}/{}",
+            self.game.player().excess_shield_cents,
+            self.game.player().excess_shield_cents_per_upgrade
+        );
         buf.set_string(0, text_y, up_display, Style::default());
         text_y += 1;
-        let xp_display = format!("XP: {}", self.game.player().experience_point_cents);
+        let xp_display = format!(
+            "XP: {}/{}",
+            self.game.player().experience_point_cents,
+            self.game.player().experience_point_cents_per_level_up
+        );
         buf.set_string(0, text_y, xp_display, Style::default());
         text_y += 2;
         // player abilities
