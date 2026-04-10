@@ -193,6 +193,10 @@ impl<'a> Widget for GameWidget<'a> {
 
         let mut text_y = PLAYING_CURSOR_MAX_DOWN + 1;
 
+        // turn number
+        let turn_display = format!("turn: {}", self.game.turns_passed() + 1);
+        buf.set_string(0, text_y, turn_display, Style::default());
+        text_y += 1;
         // incoming damage
         let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
         buf.set_string(0, text_y, incoming_damage_display, Style::default());
