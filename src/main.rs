@@ -487,6 +487,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     // playing on board
                     match key.code {
                         KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Esc => {
+                            game.cancel_selection();
+                        }
                         KeyCode::Char(' ') => {
                             if game.drop_selection() {
                                 // slashed tiles; have enemies attack and then pull down tiles,
