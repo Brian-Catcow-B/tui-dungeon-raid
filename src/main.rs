@@ -189,6 +189,8 @@ impl<'a> Widget for GameWidget<'a> {
             buf.get_mut(pos.0, pos.1).set_bg(Color::White);
         }
 
+        let (coinincrease, hpincrease, armorincrease, shieldpointincrease, outgoing_damage) = self.game.selection_yield_coins_hp_armor_shieldpoints_damage();
+
         // below text
 
         let mut text_y = PLAYING_CURSOR_MAX_DOWN + 1;
@@ -197,35 +199,57 @@ impl<'a> Widget for GameWidget<'a> {
         let turn_display = format!("turn: {}", self.game.turns_passed() + 1);
         buf.set_string(0, text_y, turn_display, Style::default());
         text_y += 1;
+        // outgoing damage
+        if outgoing_damage > 0 {
+            let outgoing_damage_display = format!("outgoing damage: {}", outgoing_damage);
+            buf.set_string(0, text_y, outgoing_damage_display, Style::default());
+            text_y += 1;
+        }
         // incoming damage
         let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
         buf.set_string(0, text_y, incoming_damage_display, Style::default());
         text_y += 1;
         // player stats and whatnot
+        let mut hit_points_numerator = format!("{}", self.game.player().being.hit_points);
+        if hpincrease > 0 {
+            hit_points_numerator += format!("+{}", hpincrease).as_str();
+        }
         let hit_points_display = format!(
             "hit points: {}/{}",
-            self.game.player().being.hit_points,
+            hit_points_numerator,
             self.game.player().being.max_hit_points
         );
         buf.set_string(0, text_y, hit_points_display, Style::default());
         text_y += 1;
+        let mut shields_numerator = format!("{}", self.game.player().being.shields);
+        if armorincrease > 0 {
+            shields_numerator += format!("+{}", armorincrease).as_str();
+        }
         let shields_display = format!(
             "shields: {}/{}",
-            self.game.player().being.shields,
+            shields_numerator,
             self.game.player().being.max_shields
         );
         buf.set_string(0, text_y, shields_display, Style::default());
         text_y += 1;
+        let mut coins_numerator = format!("{}", self.game.player().coin_cents);
+        if coinincrease > 0 {
+            coins_numerator += format!("+{}", coinincrease).as_str();
+        }
         let coins_display = format!(
             "coins: {}/{}",
-            self.game.player().coin_cents,
+            coins_numerator,
             self.game.player().coin_cents_per_purchase
         );
         buf.set_string(0, text_y, coins_display, Style::default());
         text_y += 1;
+        let mut up_numerator = format!("{}", self.game.player().excess_shield_cents);
+        if shieldpointincrease > 0 {
+            up_numerator += format!("+{}", shieldpointincrease).as_str();
+        }
         let up_display = format!(
             "UP: {}/{}",
-            self.game.player().excess_shield_cents,
+            up_numerator,
             self.game.player().excess_shield_cents_per_upgrade
         );
         buf.set_string(0, text_y, up_display, Style::default());
