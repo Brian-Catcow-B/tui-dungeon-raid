@@ -189,39 +189,67 @@ impl<'a> Widget for GameWidget<'a> {
             buf.get_mut(pos.0, pos.1).set_bg(Color::White);
         }
 
+        let (coinincrease, hpincrease, armorincrease, shieldpointincrease, outgoing_damage) = self.game.selection_yield_coins_hp_armor_shieldpoints_damage();
+
         // below text
 
         let mut text_y = PLAYING_CURSOR_MAX_DOWN + 1;
 
+        // turn number
+        let turn_display = format!("turn: {}", self.game.turns_passed() + 1);
+        buf.set_string(0, text_y, turn_display, Style::default());
+        text_y += 1;
+        // outgoing damage
+        if outgoing_damage > 0 {
+            let outgoing_damage_display = format!("outgoing damage: {}", outgoing_damage);
+            buf.set_string(0, text_y, outgoing_damage_display, Style::default());
+            text_y += 1;
+        }
         // incoming damage
         let incoming_damage_display = format!("incoming damage: {}", self.game.incoming_damage());
         buf.set_string(0, text_y, incoming_damage_display, Style::default());
         text_y += 1;
         // player stats and whatnot
+        let mut hit_points_numerator = format!("{}", self.game.player().being.hit_points);
+        if hpincrease > 0 {
+            hit_points_numerator += format!("+{}", hpincrease).as_str();
+        }
         let hit_points_display = format!(
             "hit points: {}/{}",
-            self.game.player().being.hit_points,
+            hit_points_numerator,
             self.game.player().being.max_hit_points
         );
         buf.set_string(0, text_y, hit_points_display, Style::default());
         text_y += 1;
+        let mut shields_numerator = format!("{}", self.game.player().being.shields);
+        if armorincrease > 0 {
+            shields_numerator += format!("+{}", armorincrease).as_str();
+        }
         let shields_display = format!(
             "shields: {}/{}",
-            self.game.player().being.shields,
+            shields_numerator,
             self.game.player().being.max_shields
         );
         buf.set_string(0, text_y, shields_display, Style::default());
         text_y += 1;
+        let mut coins_numerator = format!("{}", self.game.player().coin_cents);
+        if coinincrease > 0 {
+            coins_numerator += format!("+{}", coinincrease).as_str();
+        }
         let coins_display = format!(
             "coins: {}/{}",
-            self.game.player().coin_cents,
+            coins_numerator,
             self.game.player().coin_cents_per_purchase
         );
         buf.set_string(0, text_y, coins_display, Style::default());
         text_y += 1;
+        let mut up_numerator = format!("{}", self.game.player().excess_shield_cents);
+        if shieldpointincrease > 0 {
+            up_numerator += format!("+{}", shieldpointincrease).as_str();
+        }
         let up_display = format!(
             "UP: {}/{}",
-            self.game.player().excess_shield_cents,
+            up_numerator,
             self.game.player().excess_shield_cents_per_upgrade
         );
         buf.set_string(0, text_y, up_display, Style::default());
@@ -274,8 +302,9 @@ impl<'a> Widget for GameWidget<'a> {
                 );
             }
         }
+        text_y += 2;
 
-        // improvement choice or board
+        // improvement choice or (hovered tile description at text_y and board at top to PLAYING_CURSOR_MAX_DOWN)
 
         match self.game.improvement_choice_set() {
             Some(set) => {
@@ -310,16 +339,15 @@ impl<'a> Widget for GameWidget<'a> {
                         TileType::Special => "Special",
                         _ => unreachable!(""),
                     };
-                    let info_string;
-                    match hover_tile.tile_info {
+                    let info_string = match hover_tile.tile_info {
                         TileInfo::Enemy(b) => {
-                            info_string = format!(
+                            format!(
                                 " {{ hp: {}, sh: {}, dmg: {} }}",
                                 b.hit_points, b.shields, b.base_output_damage
                             )
                         }
                         TileInfo::Special(s) => {
-                            info_string = format!(
+                            format!(
                                 " {{ type: {}, hp: {}, sh: {}, dmg: {} }}",
                                 s.special_type.name_description().0,
                                 s.being.hit_points,
@@ -327,7 +355,7 @@ impl<'a> Widget for GameWidget<'a> {
                                 s.being.base_output_damage
                             )
                         }
-                        TileInfo::None => info_string = String::from(""),
+                        TileInfo::None => String::from(""),
                     };
                     hover_string += info_string.as_str();
                     buf.set_string(0, text_y, hover_string, Style::default());
@@ -399,6 +427,20 @@ impl<'a> Widget for GameWidget<'a> {
                 }
             }
         }
+        text_y += 2;
+
+        // instructions
+        buf.set_string(0, text_y, "help:", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "'q' to quit", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "'x' to select tile", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "'esc' to cancel selection", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "arrow keys or 'h', 'j', 'k', 'l' to move cursor", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "space to collect/attack selection or select upgrade", Style::default());
     }
 }
 
@@ -483,6 +525,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     // playing on board
                     match key.code {
                         KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Esc => {
+                            game.cancel_selection();
+                        }
                         KeyCode::Char(' ') => {
                             if game.drop_selection() {
                                 // slashed tiles; have enemies attack and then pull down tiles,
