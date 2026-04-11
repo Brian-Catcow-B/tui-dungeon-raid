@@ -302,8 +302,9 @@ impl<'a> Widget for GameWidget<'a> {
                 );
             }
         }
+        text_y += 2;
 
-        // improvement choice or board
+        // improvement choice or (hovered tile description at text_y and board at top to PLAYING_CURSOR_MAX_DOWN)
 
         match self.game.improvement_choice_set() {
             Some(set) => {
@@ -338,16 +339,15 @@ impl<'a> Widget for GameWidget<'a> {
                         TileType::Special => "Special",
                         _ => unreachable!(""),
                     };
-                    let info_string;
-                    match hover_tile.tile_info {
+                    let info_string = match hover_tile.tile_info {
                         TileInfo::Enemy(b) => {
-                            info_string = format!(
+                            format!(
                                 " {{ hp: {}, sh: {}, dmg: {} }}",
                                 b.hit_points, b.shields, b.base_output_damage
                             )
                         }
                         TileInfo::Special(s) => {
-                            info_string = format!(
+                            format!(
                                 " {{ type: {}, hp: {}, sh: {}, dmg: {} }}",
                                 s.special_type.name_description().0,
                                 s.being.hit_points,
@@ -355,7 +355,7 @@ impl<'a> Widget for GameWidget<'a> {
                                 s.being.base_output_damage
                             )
                         }
-                        TileInfo::None => info_string = String::from(""),
+                        TileInfo::None => String::from(""),
                     };
                     hover_string += info_string.as_str();
                     buf.set_string(0, text_y, hover_string, Style::default());
@@ -427,6 +427,20 @@ impl<'a> Widget for GameWidget<'a> {
                 }
             }
         }
+        text_y += 2;
+
+        // instructions
+        buf.set_string(0, text_y, "help:", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "'q' to quit", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "'x' to select tile", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "'esc' to cancel selection", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "arrow keys or 'h', 'j', 'k', 'l' to move cursor", Style::default());
+        text_y += 1;
+        buf.set_string(0, text_y, "space to collect/attack selection or select upgrade", Style::default());
     }
 }
 
